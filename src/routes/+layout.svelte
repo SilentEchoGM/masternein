@@ -1,6 +1,7 @@
 <script lang="ts">
-    import "../app.css";
+  import "../app.css";
 </script>
 
-<slot />
-
+<div class="flex flex-col place-content-center place-items-center gap-4">
+  <slot />
+</div>

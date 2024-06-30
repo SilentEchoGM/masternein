@@ -13,6 +13,7 @@
     "@sveltejs/adapter-auto": "^3.0.0",
     "@sveltejs/kit": "^2.0.0",
     "@sveltejs/vite-plugin-svelte": "^3.0.0",
+    "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.39",
     "svelte": "^5.0.0-next.1",
@@ -24,6 +25,13 @@
   },
   "type": "module",
   "dependencies": {
+    "@effect/schema": "^0.68.15",
+    "@sveltejs/adapter-node": "^5.2.0",
+    "effect": "^3.4.5",
+    "localforage": "^1.10.0",
+    "socket.io": "^4.7.5",
+    "socket.io-client": "^4.7.5",
+    "uuid": "^10.0.0",
     "xstate": "^5.14.0"
   }
 }

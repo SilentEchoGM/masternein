@@ -48,6 +48,7 @@ export const GAME = pipe(
         | { type: "connected"; params: { roomCode: string } }
         | { type: "host_state"; params: GamePacket; started?: boolean }
         | { type: "host_disconnected" }
+        | { type: "replace_rack"; params: { rack: Rack } }
         | { type: "ended"; params: { success: boolean } }
         | {
             type: "player_state";
@@ -217,6 +218,20 @@ export const GAME = pipe(
               dec_rack: {
                 actions: [
                   { type: "decRack", params: ({ event }) => event.params },
+                  {
+                    type: "sendPlayerState",
+                    params: ({ context }) => ({
+                      rack: context.rack,
+                      attempts: context.attempts,
+                    }),
+                  },
+                ],
+              },
+              replace_rack: {
+                actions: [
+                  assign({
+                    rack: ({ event }) => event.params.rack,
+                  }),
                   {
                     type: "sendPlayerState",
                     params: ({ context }) => ({

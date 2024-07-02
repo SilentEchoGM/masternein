@@ -21,7 +21,29 @@
           }}">▲</button>
       {/if}
       <div
-        class="size-6 rounded-full border-2 border-opacity-70 border-solid border-black"
+        onwheel="{(e) => {
+          if (!editable) return;
+          e.preventDefault();
+
+          if (e.deltaY > 0) {
+            GAME.send({
+              type: 'inc_rack',
+              params: {
+                i,
+              },
+            });
+          }
+
+          if (e.deltaY < 0) {
+            GAME.send({
+              type: 'dec_rack',
+              params: {
+                i,
+              },
+            });
+          }
+        }}"
+        class="size-8 rounded-full border-2 border-opacity-70 border-solid border-black"
         style:background-color="{colours[colour]}">
       </div>
 

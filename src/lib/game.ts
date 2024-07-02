@@ -64,6 +64,16 @@ export const compareRack =
       )
     );
 
+    const attemptColourCount = pipe(
+      attempt,
+      Array.reduce(
+        {} as { [Property in Colour]?: number },
+        (acc, colour, i) => {
+          return { ...acc, [colour]: (acc[colour] || 0) + 1 };
+        }
+      )
+    );
+
     const correctColours = new Set(correct);
 
     const singleCount = pipe(
@@ -72,9 +82,10 @@ export const compareRack =
         const count = Array.filter(attempt, (c) => c === colour).length;
         console.log(`count ${colour}`, count, correctColourCount[colour]);
 
-        return acc + count;
+        return acc + Math.min(count, correctColourCount[colour] ?? 0);
       })
     );
+
     console.log("singleCount", {
       singleCount,
       correctColours,
@@ -91,16 +102,6 @@ export const compareRack =
       doubleCount: doubleCount,
     };
   };
-
-console.log(
-  "compareRack",
-  compareRack(["red", "green", "blue", "orange"])([
-    "gray",
-    "green",
-    "blue",
-    "orange",
-  ])
-);
 
 export const isWinningRack = (correct: Rack) => (attempt: Rack) =>
   compareRack(correct)(attempt).doubleCount === correct.length;

@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { colours, isEqualRack } from "$lib/game";
+  import { isEqualRack } from "$lib/game";
   import { GAME } from "$lib/machine.svelte";
   import RackUi from "$lib/RackUi.svelte";
-  import { Array, Equal, Option, pipe, Record } from "effect";
-  import { isSome, orElse } from "effect/Option";
+  import { Array, Option, pipe } from "effect";
 
   const log = (...args: any[]) => {
     pipe(
@@ -160,15 +159,22 @@
   {/if}
 
   {#each Array.reverse(GAME.context.attempts) as attempt}
-    <div
+    <button
+      onclick="{() => {
+        GAME.send({
+          type: 'replace_rack',
+          params: {
+            rack: attempt.rack,
+          },
+        });
+      }}"
       class="{isEqualRack(attempt.rack)(GAME.context.rack)
         ? 'bg-orange-200'
-        : 'bg-gray-300'} p-3 rounded-lg">
-      <h3 class="text-xl font-bold text-center">
-        Attempt {attempt.i + 1} / {GAME.context.limit}
-      </h3>
-
-      <div class="flex gap-1">
+        : 'bg-gray-300'} p-1 px-3 rounded-lg">
+      <div class="flex gap-1 place-content-center place-items-center">
+        <h3 class="text-xl font-bold text-center">
+          {attempt.i + 1} / {GAME.context.limit}
+        </h3>
         <RackUi rack="{attempt.rack}" />
 
         <div class="grid grid-rows-2 font-mono font-bold">
@@ -176,6 +182,6 @@
           <div>✔️✔️ <span class="text-xl">{attempt.double}</span></div>
         </div>
       </div>
-    </div>
+    </button>
   {/each}
 {/if}

@@ -5,6 +5,7 @@ module.exports = {
     env: {
       NODE_ENV: "production",
       VITE_SOCKET_PORT: "39373",
+      PORT: "30001"
     },
   }, {
     name: "masternein-socket",

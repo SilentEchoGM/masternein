@@ -115,7 +115,7 @@ export const GAME = pipe(
       room: Option.none(),
       playerId: Option.none(),
       rack: defaultRack,
-      limit: 1,
+      limit: 10,
     },
     invoke: {
       src: "getPlayerId",

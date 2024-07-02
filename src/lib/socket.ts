@@ -121,6 +121,10 @@ const connectSocket = async () => {
   _socket.on("disconnect", () => {
     console.log("📡❌");
   });
+
+  _socket.on("error", ({ message }) => {
+    console.error("❗📡❌", message);
+  });
 };
 
 connectSocket();

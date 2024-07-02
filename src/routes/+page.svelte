@@ -89,7 +89,8 @@
       Hosting - <button
         onclick="{() => {
           window.navigator.clipboard.writeText(
-            'http://' + window.location.host + '/room/' + room
+            //'http://' + window.location.host + '/room/' +
+            room
           );
         }}">{room}</button>
     </h2>
@@ -107,7 +108,8 @@
       Playing - <button
         onclick="{() => {
           window.navigator.clipboard.writeText(
-            'http://' + window.location.host + '/room/' + room
+            //'http://' + window.location.host + '/room/' +
+            room
           );
         }}">{room}</button>
     </h2>

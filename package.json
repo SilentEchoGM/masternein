@@ -27,6 +27,7 @@
   "dependencies": {
     "@effect/schema": "^0.68.15",
     "@sveltejs/adapter-node": "^5.2.0",
+    "dotenv": "^16.4.5",
     "effect": "^3.4.5",
     "localforage": "^1.10.0",
     "socket.io": "^4.7.5",

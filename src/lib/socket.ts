@@ -1,4 +1,4 @@
-import { browser } from "$app/environment";
+import { browser, dev } from "$app/environment";
 import { Effect, Option } from "effect";
 import { Socket, io } from "socket.io-client";
 import { getPlayerId } from "./db";
@@ -20,7 +20,9 @@ const connectSocket = async () => {
   if (!browser) return;
 
   const _socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(
-    "http://localhost:39373",
+    dev
+      ? `http://localhost:${import.meta.env.VITE_SOCKET_PORT}`
+      : `https://masternein.silentecho.eu:${import.meta.env.VITE_SOCKET_PORT}`,
     {
       query: {
         playerId: await Effect.runPromise(getPlayerId),

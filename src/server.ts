@@ -5,22 +5,32 @@ import type {
   SocketData,
 } from "$lib/types";
 import { Schema } from "@effect/schema";
+import { config } from "dotenv";
 import { Array, Effect, Option, pipe } from "effect";
 import { Server, Socket } from "socket.io";
+
+config();
+
+const dev = process.env.NODE_ENV !== "production";
+const { VITE_SOCKET_PORT = "39373" } = process.env;
+
+const origin = dev
+  ? `http://localhost:5173`
+  : `https://masternein.silentecho.eu`;
 
 const io = new Server<
   ClientToServerEvents,
   ServerToClientEvents,
   InterServerEvents,
   SocketData
->(39373, {
+>(parseInt(VITE_SOCKET_PORT), {
   cors: {
-    origin: "http://localhost:5173",
+    origin,
   },
 });
 
 console.log(
-  "🚀 Socket.io server is running at http://localhost:39373, waiting for connections..."
+  `🚀 Socket.io server is running at ${origin}, waiting for connections...`
 );
 
 const connections = new Map<

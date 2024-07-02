@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "vite dev",
+    "dev:socket": "bun --watch src/socket.ts",
     "build": "vite build",
     "build:socket": "tsc --project tsconfig.socket.json",
     "preview": "vite preview",

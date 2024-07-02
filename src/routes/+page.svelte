@@ -203,7 +203,7 @@
         <h3 class="text-xl font-bold text-center">
           {attempt.i + 1} / {GAME.context.limit}
         </h3>
-        <RackUi rack="{attempt.rack}" />
+        <RackUi rack="{attempt.rack}" highlightAgainstPendingRack />
 
         <div class="grid grid-rows-2 font-mono font-bold">
           <div class="">✔️❌ <span class="text-xl">{attempt.single}</span></div>

@@ -1,9 +1,18 @@
 <script lang="ts">
+  import { context } from "@effect/schema/FastCheck";
   import { colours } from "./game";
   import { GAME } from "./machine.svelte";
   import type { Rack } from "./types";
 
-  let { rack, editable = false }: { rack: Rack; editable?: boolean } = $props();
+  let {
+    rack,
+    editable = false,
+    highlightAgainstPendingRack = false,
+  }: {
+    highlightAgainstPendingRack?: boolean;
+    rack: Rack;
+    editable?: boolean;
+  } = $props();
 </script>
 
 <div class="flex gap-2 p-4">
@@ -44,7 +53,10 @@
             });
           }
         }}"
-        class="size-8 rounded-full border-2 border-opacity-70 border-solid border-black"
+        class="size-8 rounded-full border-opacity-70 border-solid border-black border-2 {highlightAgainstPendingRack &&
+        GAME.context.rack[i] === colour
+          ? 'border-black border-double border-8 border-opacity-70'
+          : ''}"
         style:background-color="{colours[colour]}">
       </div>
 

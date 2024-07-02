@@ -22,7 +22,7 @@ const connectSocket = async () => {
   const _socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(
     dev
       ? `http://localhost:${import.meta.env.VITE_SOCKET_PORT}`
-      : `https://masternein.silentecho.eu:${import.meta.env.VITE_SOCKET_PORT}`,
+      : `https://masternein.silentecho.eu`,
     {
       query: {
         playerId: await Effect.runPromise(getPlayerId),

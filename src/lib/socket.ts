@@ -112,18 +112,18 @@ const connectSocket = async () => {
   });
 
   _socket.on("host-disconnected", () => {
-    console.log("📡❌");
+    console.log("📡❌ host disconnected");
     GAME.send({
       type: "host_disconnected",
     });
   });
 
   _socket.on("disconnect", () => {
-    console.log("📡❌");
+    console.log("📡❌ disconnected");
   });
 
   _socket.on("error", ({ message }) => {
-    console.error("❗📡❌", message);
+    console.error("❗📡❌ error", message);
   });
 };
 

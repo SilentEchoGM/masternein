@@ -8,7 +8,8 @@
     "build:socket": "tsc --project tsconfig.socket.json",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "update": "git pull && npm i && npm run build && npm run build:socket"
   },
   "devDependencies": {
     "@sveltejs/adapter-auto": "^3.0.0",

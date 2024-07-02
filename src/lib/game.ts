@@ -24,7 +24,7 @@ export const colours: Record<Colour, string> = {
   gray: "#808080",
   white: "#ffffff",
   black: "#000000",
-  pink: "#F653A6",
+  pink: "#F98BC4",
   purple: "#8A4FBA",
 } as const;
 

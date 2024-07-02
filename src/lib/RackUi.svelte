@@ -24,6 +24,7 @@
         onwheel="{(e) => {
           if (!editable) return;
           e.preventDefault();
+          e.stopPropagation();
 
           if (e.deltaY > 0) {
             GAME.send({

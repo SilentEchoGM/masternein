@@ -25,6 +25,7 @@ export type ServerToClientEvents = {
   "set-code": () => void;
   attempt: (params: { rack: Rack }) => void;
   "host-disconnected": () => void;
+  new_game: () => void;
 };
 
 export type ClientToServerEvents = {
@@ -35,6 +36,7 @@ export type ClientToServerEvents = {
   "player-state": (params: GamePacket) => void;
   "set-code": () => void;
   attempt: (params: { rack: Rack }) => void;
+  new_game: () => void;
 };
 
 export type InterServerEvents = {};

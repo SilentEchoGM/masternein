@@ -167,4 +167,8 @@ io.on("connection", (socket) => {
       hostSocket.value.emit("attempt", { rack });
     }
   });
+
+  socket.on("new_game", () => {
+    socket.broadcast.to(socket.data.roomCode).emit("new_game");
+  });
 });

@@ -125,6 +125,13 @@ const connectSocket = async () => {
   _socket.on("error", ({ message }) => {
     console.error("❗📡❌ error", message);
   });
+
+  _socket.on("new_game", () => {
+    console.log("📡✔️");
+    GAME.send({
+      type: "new_game",
+    });
+  });
 };
 
 connectSocket();
@@ -199,4 +206,13 @@ export const sendEnded = (success: boolean) => {
   socket.conn.value.emit("ended", {
     success,
   });
+};
+
+export const sendNewGame = () => {
+  if (Option.isNone(socket.conn)) {
+    console.error("socket is not connected");
+    return;
+  }
+
+  socket.conn.value.emit("new_game");
 };

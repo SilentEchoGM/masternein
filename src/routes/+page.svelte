@@ -104,7 +104,10 @@
 
   {#if GAME.snapshot.matches("player")}
     <h2 class="text-2xl font-bold">
-      Playing - <button
+      {GAME.snapshot.matches({ player: "active" })
+        ? "Cracking the Code"
+        : "Waiting for Host"} -
+      <button
         onclick="{() => {
           window.navigator.clipboard.writeText(
             //'http://' + window.location.host + '/room/' +
@@ -121,6 +124,7 @@
 
   {#if GAME.snapshot.matches("host") && Option.isNone(GAME.context.code)}
     <button
+      class="bg-green-600 hover:bg-green-800 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded"
       onclick="{() => {
         GAME.send({
           type: 'set_code',
@@ -148,14 +152,38 @@
 
   {#if GAME.snapshot.matches({ player: { ended: "failure" } })}
     <div class="bg-red-200 p-3 rounded-lg">
-      <h3 class="text-xl font-bold text-center">Failed</h3>
+      <h3 class="text-xl font-bold text-center">Failed to Crack the Code!</h3>
     </div>
   {/if}
 
   {#if GAME.snapshot.matches({ player: { ended: "success" } })}
     <div class="bg-green-200 p-3 rounded-lg">
-      <h3 class="text-xl font-bold text-center">Success</h3>
+      <h3 class="text-xl font-bold text-center">Code Cracked!</h3>
     </div>
+  {/if}
+
+  {#if GAME.snapshot.matches({ host: { ended: "failure" } })}
+    <div class="bg-red-200 p-3 rounded-lg">
+      <h3 class="text-xl font-bold text-center">Failed to Crack the Code!</h3>
+    </div>
+  {/if}
+
+  {#if GAME.snapshot.matches({ host: { ended: "success" } })}
+    <div class="bg-green-200 p-3 rounded-lg">
+      <h3 class="text-xl font-bold text-center">Code Cracked!</h3>
+    </div>
+  {/if}
+
+  {#if GAME.snapshot.matches({ host: "ended" })}
+    <button
+      class="bg-green-600 hover:bg-green-800 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded"
+      onclick="{() => {
+        GAME.send({
+          type: 'new_game',
+        });
+      }}">
+      Start New Game
+    </button>
   {/if}
 
   {#each Array.reverse(GAME.context.attempts) as attempt}

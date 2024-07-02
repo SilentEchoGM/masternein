@@ -14,6 +14,7 @@ import {
   sendHost,
   sendHostState,
   sendJoin,
+  sendNewGame,
   sendPlayerState,
   sendSetCode,
 } from "./socket";
@@ -49,6 +50,7 @@ export const GAME = pipe(
         | { type: "host_state"; params: GamePacket; started?: boolean }
         | { type: "host_disconnected" }
         | { type: "replace_rack"; params: { rack: Rack } }
+        | { type: "new_game" }
         | { type: "ended"; params: { success: boolean } }
         | {
             type: "player_state";
@@ -65,6 +67,7 @@ export const GAME = pipe(
       sendJoin: (_, { roomCode }: { roomCode: string }) => sendJoin(roomCode),
       sendHost: (_, { roomCode }: { roomCode: string }) => sendHost(roomCode),
       sendAttempt: (_, { rack }: { rack: Rack }) => sendAttempt(rack),
+      sendNewGame: () => sendNewGame(),
       incRack: assign({
         rack: ({ context: { rack } }, { i }: { i: number }) =>
           pipe(rack, Array.replace(i, getNextColour(rack[i])), (arr) =>
@@ -112,7 +115,7 @@ export const GAME = pipe(
       room: Option.none(),
       playerId: Option.none(),
       rack: defaultRack,
-      limit: 10,
+      limit: 1,
     },
     invoke: {
       src: "getPlayerId",
@@ -265,6 +268,15 @@ export const GAME = pipe(
           },
           ended: {
             initial: "failure",
+            on: {
+              new_game: {
+                target: "inactive",
+                actions: assign({
+                  rack: defaultRack,
+                  attempts: [],
+                }),
+              },
+            },
             states: {
               success: {},
               failure: {},
@@ -310,6 +322,7 @@ export const GAME = pipe(
                       rack: event.params.rack,
                     }),
                   },
+                  target: "ended.success",
                   actions: [{ type: "sendEnded", params: { success: true } }],
                 },
                 {
@@ -362,6 +375,19 @@ export const GAME = pipe(
           },
           ended: {
             initial: "failure",
+            on: {
+              new_game: {
+                target: "active",
+                actions: [
+                  assign({
+                    rack: defaultRack,
+                    attempts: [],
+                    code: Option.none(),
+                  }),
+                  "sendNewGame",
+                ],
+              },
+            },
             states: {
               success: {},
               failure: {},

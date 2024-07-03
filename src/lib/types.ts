@@ -13,6 +13,7 @@ export type Attempt = {
 export type GamePacket = {
   rack: TupleOf<4, Colour>;
   attempts: Array<Attempt>;
+  colours: Array<Colour>;
 };
 
 export type ServerToClientEvents = {

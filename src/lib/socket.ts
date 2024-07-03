@@ -46,26 +46,28 @@ const connectSocket = async () => {
     });
   });
 
-  _socket.on("player-state", ({ rack, attempts }) => {
-    console.log("📋", rack);
+  _socket.on("player-state", ({ rack, attempts, colours }) => {
+    console.log("📋 player-state", rack);
 
     GAME.send({
       type: "player_state",
       params: {
         rack,
         attempts,
+        colours,
       },
     });
   });
 
-  _socket.on("host-state", ({ rack, attempts }, started = false) => {
-    console.log("📋", rack);
+  _socket.on("host-state", ({ rack, attempts, colours }, started = false) => {
+    console.log("📋host-state", rack);
 
     GAME.send({
       type: "host_state",
       params: {
         rack,
         attempts,
+        colours,
       },
       started,
     });
@@ -78,6 +80,7 @@ const connectSocket = async () => {
       {
         rack: GAME.context.rack,
         attempts: GAME.context.attempts,
+        colours: GAME.context.colours,
       },
       Option.isSome(GAME.context.code)
     );
@@ -91,7 +94,7 @@ const connectSocket = async () => {
   });
 
   _socket.on("attempt", ({ rack }) => {
-    console.log("🔄");
+    console.log("🔄", rack);
     GAME.send({
       type: "attempt",
       params: {

@@ -7,6 +7,7 @@ import {
   getNextColour,
   getPreviousColour,
   isWinningRack,
+  type Colour,
 } from "./game";
 import {
   sendAttempt,
@@ -37,6 +38,7 @@ export const GAME = pipe(
         playerId: Option.Option<string>;
         rack: Rack;
         limit: number;
+        colours: Array<Colour>;
       };
       events:
         | {
@@ -52,6 +54,7 @@ export const GAME = pipe(
         | { type: "replace_rack"; params: { rack: Rack } }
         | { type: "new_game" }
         | { type: "ended"; params: { success: boolean } }
+        | { type: "toggle_colour"; params: { colour: Colour } }
         | {
             type: "player_state";
             params: GamePacket;
@@ -69,15 +72,17 @@ export const GAME = pipe(
       sendAttempt: (_, { rack }: { rack: Rack }) => sendAttempt(rack),
       sendNewGame: () => sendNewGame(),
       incRack: assign({
-        rack: ({ context: { rack } }, { i }: { i: number }) =>
-          pipe(rack, Array.replace(i, getNextColour(rack[i])), (arr) =>
+        rack: ({ context: { rack, colours } }, { i }: { i: number }) =>
+          pipe(rack, Array.replace(i, getNextColour(colours)(rack[i])), (arr) =>
             Tuple.isTupleOf(arr, 4) ? arr : rack
           ) satisfies Rack,
       }),
       decRack: assign({
-        rack: ({ context: { rack } }, { i }: { i: number }) =>
-          pipe(rack, Array.replace(i, getPreviousColour(rack[i])), (arr) =>
-            Tuple.isTupleOf(arr, 4) ? arr : rack
+        rack: ({ context: { rack, colours } }, { i }: { i: number }) =>
+          pipe(
+            rack,
+            Array.replace(i, getPreviousColour(colours)(rack[i])),
+            (arr) => (Tuple.isTupleOf(arr, 4) ? arr : rack)
           ) satisfies Rack,
       }),
       sendHostState: (_, params: GamePacket) => sendHostState(params),
@@ -104,6 +109,17 @@ export const GAME = pipe(
           ];
         },
       }),
+      toggleColour: assign({
+        colours: ({ context }, { colour }: { colour: Colour }) =>
+          Array.some(context.colours, (c) => c === colour)
+            ? Array.filter(context.colours, (c) => c !== colour)
+            : [...context.colours, colour],
+      }),
+      reset: assign({
+        attempts: [],
+        colours: [...ColourSchema.literals],
+        rack: defaultRack,
+      }),
     },
     actors: {
       getPlayerId: fromPromise(() => Effect.runPromise(getPlayerId)),
@@ -116,6 +132,7 @@ export const GAME = pipe(
       playerId: Option.none(),
       rack: defaultRack,
       limit: 10,
+      colours: [...ColourSchema.literals],
     },
     invoke: {
       src: "getPlayerId",
@@ -160,11 +177,7 @@ export const GAME = pipe(
         on: {
           host_disconnected: {
             target: "menu",
-            actions: assign({
-              room: Option.none(),
-              rack: defaultRack,
-              attempts: [],
-            }),
+            actions: "reset",
           },
         },
         states: {
@@ -214,6 +227,7 @@ export const GAME = pipe(
                     params: ({ context }) => ({
                       rack: context.rack,
                       attempts: context.attempts,
+                      colours: context.colours,
                     }),
                   },
                 ],
@@ -226,6 +240,20 @@ export const GAME = pipe(
                     params: ({ context }) => ({
                       rack: context.rack,
                       attempts: context.attempts,
+                      colours: context.colours,
+                    }),
+                  },
+                ],
+              },
+              toggle_colour: {
+                actions: [
+                  { type: "toggleColour", params: ({ event }) => event.params },
+                  {
+                    type: "sendPlayerState",
+                    params: ({ context }) => ({
+                      rack: context.rack,
+                      attempts: context.attempts,
+                      colours: context.colours,
                     }),
                   },
                 ],
@@ -240,6 +268,7 @@ export const GAME = pipe(
                     params: ({ context }) => ({
                       rack: context.rack,
                       attempts: context.attempts,
+                      colours: context.colours,
                     }),
                   },
                 ],
@@ -271,10 +300,7 @@ export const GAME = pipe(
             on: {
               new_game: {
                 target: "inactive",
-                actions: assign({
-                  rack: defaultRack,
-                  attempts: [],
-                }),
+                actions: "reset",
               },
             },
             states: {
@@ -303,12 +329,14 @@ export const GAME = pipe(
                 actions: [
                   assign({
                     rack: ({ event }) => event.params.rack,
+                    colours: ({ event }) => event.params.colours,
                   }),
                   {
                     type: "sendHostState",
                     params: ({ context }) => ({
                       rack: context.rack,
                       attempts: context.attempts,
+                      colours: context.colours,
                     }),
                   },
                 ],
@@ -342,6 +370,7 @@ export const GAME = pipe(
                       params: ({ context }) => ({
                         rack: context.rack,
                         attempts: context.attempts,
+                        colours: context.colours,
                       }),
                     },
                   ],
@@ -378,14 +407,7 @@ export const GAME = pipe(
             on: {
               new_game: {
                 target: "active",
-                actions: [
-                  assign({
-                    rack: defaultRack,
-                    attempts: [],
-                    code: Option.none(),
-                  }),
-                  "sendNewGame",
-                ],
+                actions: ["reset", "sendNewGame"],
               },
             },
             states: {

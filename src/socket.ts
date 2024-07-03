@@ -135,23 +135,22 @@ io.on("connection", (socket) => {
     console.log("🕹️✔️", `${socket.data.playerId} is hosting ${roomCode}`);
   });
 
-  socket.on("player-state", ({ rack, attempts }) => {
+  socket.on("player-state", ({ rack, attempts, colours }) => {
     const hostSocket = getHostSocket(socket.data.roomCode);
 
-    console.log("📋", rack);
     if (Option.isSome(hostSocket)) {
-      hostSocket.value.emit("player-state", { rack, attempts });
+      hostSocket.value.emit("player-state", { rack, attempts, colours });
     }
   });
 
-  socket.on("host-state", ({ rack, attempts }, started = false) => {
+  socket.on("host-state", ({ rack, attempts, colours }, started = false) => {
     socket.broadcast
       .to(socket.data.roomCode)
-      .emit("host-state", { rack, attempts }, started);
+      .emit("host-state", { rack, attempts, colours }, started);
   });
 
   socket.on("set-code", () => {
-    console.log("🔄", `${socket.data.playerId} is setting the code`);
+    console.log("🔄", `${socket.data.playerId} has set the code`);
     socket.broadcast.to(socket.data.roomCode).emit("set-code");
   });
 

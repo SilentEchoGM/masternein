@@ -28,23 +28,25 @@ export const colours: Record<Colour, string> = {
   purple: "#8A4FBA",
 } as const;
 
-export const getNextColour = (colour: Colour): Colour =>
-  pipe(
-    ColourSchema.literals,
-    Array.findFirstIndex((c) => c === colour),
-    Option.flatMap((i) => Array.get(ColourSchema.literals, i + 1)),
-    Option.getOrElse(() => ColourSchema.literals[0])
-  );
+export const getNextColour =
+  (possible: Colour[]) =>
+  (colour: Colour): Colour =>
+    pipe(
+      possible,
+      Array.findFirstIndex((c) => c === colour),
+      Option.flatMap((i) => Array.get(possible, i + 1)),
+      Option.getOrElse(() => possible[0])
+    );
 
-export const getPreviousColour = (colour: Colour): Colour =>
-  pipe(
-    ColourSchema.literals,
-    Array.findFirstIndex((c) => c === colour),
-    Option.flatMap((i) => Array.get(ColourSchema.literals, i - 1)),
-    Option.getOrElse(
-      () => ColourSchema.literals[ColourSchema.literals.length - 1]
-    )
-  );
+export const getPreviousColour =
+  (possible: Colour[]) =>
+  (colour: Colour): Colour =>
+    pipe(
+      possible,
+      Array.findFirstIndex((c) => c === colour),
+      Option.flatMap((i) => Array.get(possible, i - 1)),
+      Option.getOrElse(() => possible[possible.length - 1])
+    );
 
 export const compareRack =
   (correct: Rack) =>
@@ -80,17 +82,10 @@ export const compareRack =
       correctColours,
       Array.reduce(0, (acc, colour) => {
         const count = Array.filter(attempt, (c) => c === colour).length;
-        console.log(`count ${colour}`, count, correctColourCount[colour]);
 
         return acc + Math.min(count, correctColourCount[colour] ?? 0);
       })
     );
-
-    console.log("singleCount", {
-      singleCount,
-      correctColours,
-      correctColourCount,
-    });
 
     const doubleCount = Array.filter(
       attempt,

@@ -1,16 +1,8 @@
 <script lang="ts">
-  import { isEqualRack } from "$lib/game";
+  import { colours, ColourSchema, isEqualRack } from "$lib/game";
   import { GAME } from "$lib/machine.svelte";
   import RackUi from "$lib/RackUi.svelte";
   import { Array, Option, pipe } from "effect";
-
-  const log = (...args: any[]) => {
-    pipe(
-      args,
-      Array.map((arg) => JSON.stringify(arg)),
-      console.log
-    );
-  };
 
   let input = $state("");
 
@@ -22,16 +14,6 @@
       Option.isSome
     )
   );
-
-  $effect(() => {
-    log(
-      "aa",
-      GAME.snapshot.value,
-      GAME.context.room,
-      ...GAME.context.attempts,
-      attempted
-    );
-  });
 </script>
 
 <h1 class="text-3xl font-bold">MasterNein</h1>
@@ -116,6 +98,37 @@
         }}">{room}</button>
     </h2>
   {/if}
+
+  <div class="flex place-content-center gap-2 bg-gray-300 p-2 px-4 rounded-lg">
+    {#each ColourSchema.literals as colour}
+      <button
+        disabled="{!GAME.snapshot.matches({ player: 'active' })}"
+        class="size-8 rounded-full border-opacity-70 border-solid border-black border-2"
+        style:background-color="{colours[colour]}"
+        style:filter="{!GAME.context.colours.includes(colour)
+          ? "grayscale(0.4)"
+          : ""}"
+        onclick="{() => {
+          GAME.send({
+            type: 'toggle_colour',
+            params: {
+              colour,
+            },
+          });
+        }}">
+        {#if !GAME.context.colours.includes(colour)}
+          <div
+            style:filter=""
+            class="font-mono font-bold text-4xl -top-2 relative {colour ===
+            'black'
+              ? 'text-white'
+              : ''}">
+            x
+          </div>
+        {/if}
+      </button>
+    {/each}
+  </div>
 
   <RackUi
     rack="{GAME.context.rack}"

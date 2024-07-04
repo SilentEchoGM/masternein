@@ -63,7 +63,10 @@ const connectSocket = async () => {
 
   _socket.on(
     "host-state",
-    ({ rack, attempts, colours, playerList }, started = false) => {
+    (
+      { rack, attempts, colours, playerList, attemptLimit },
+      started = false
+    ) => {
       console.log("📋host-state", rack);
 
       GAME.send({
@@ -73,6 +76,7 @@ const connectSocket = async () => {
           attempts,
           colours,
           playerList,
+          attemptLimit,
         },
         started,
       });
@@ -88,6 +92,7 @@ const connectSocket = async () => {
         attempts: GAME.context.attempts,
         colours: GAME.context.colours,
         playerList: GAME.context.playerList,
+        attemptLimit: GAME.context.attemptLimit,
       },
       Option.isSome(GAME.context.code)
     );

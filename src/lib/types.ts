@@ -15,6 +15,7 @@ export type HostPacket = {
   attempts: Array<Attempt>;
   colours: Array<Colour>;
   playerList: Array<Player>;
+  attemptLimit: number;
 };
 
 export type PlayerPacket = {

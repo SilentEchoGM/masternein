@@ -157,10 +157,17 @@ io.on("connection", (socket) => {
 
   socket.on(
     "host-state",
-    ({ rack, attempts, playerList, colours }, started = false) => {
+    (
+      { rack, attempts, playerList, colours, attemptLimit },
+      started = false
+    ) => {
       socket.broadcast
         .to(socket.data.roomCode)
-        .emit("host-state", { rack, attempts, playerList, colours }, started);
+        .emit(
+          "host-state",
+          { rack, attempts, playerList, colours, attemptLimit },
+          started
+        );
     }
   );
 

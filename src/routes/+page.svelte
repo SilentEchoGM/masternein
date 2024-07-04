@@ -139,7 +139,12 @@
       GAME.snapshot.matches({ host: 'active' })}" />
 
   {#if GAME.snapshot.matches("host") && Option.isNone(GAME.context.code)}
-    <div class="flex gap-2">
+    <div class="flex gap-2 place-items-baseline bg-gray-300 p-3 rounded-lg">
+      <div class="font-bold">Attempts</div>
+      <input
+        class="rounded text-center w-[5ch] font-mono"
+        type="number"
+        bind:value="{GAME.attemptLimit}" />
       <button
         class="bg-orange-400 hover:bg-orange-600 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded"
         onclick="{() => {
@@ -149,7 +154,7 @@
               rack: randomRack(),
             },
           });
-        }}">Random</button>
+        }}">Random Code</button>
       <button
         class="bg-green-600 hover:bg-green-800 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded"
         onclick="{() => {
@@ -157,7 +162,7 @@
             type: 'set_code',
           });
         }}">
-        Set Code
+        Confirm Code
       </button>
     </div>
   {/if}
@@ -229,7 +234,7 @@
         : 'bg-gray-300'} p-1 px-3 rounded-lg">
       <div class="flex gap-1 place-content-center place-items-center">
         <h3 class="text-xl font-bold text-center">
-          {attempt.i + 1} / {GAME.context.limit}
+          {attempt.i + 1} / {GAME.context.attemptLimit}
         </h3>
         <RackUi rack="{attempt.rack}" highlightAgainstPendingRack />
 

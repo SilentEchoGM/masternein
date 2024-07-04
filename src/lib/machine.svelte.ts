@@ -38,6 +38,72 @@ const defaultRack: Rack = [
   ColourSchema.literals[3],
 ];
 
+type MachineEvents =
+  | {
+      type: "set_code" | "make_host" | "host_disconnected" | "new_game";
+    }
+  | {
+      type: "attempt" | "replace_rack";
+      params: {
+        rack: Rack;
+      };
+    }
+  | {
+      type: "host" | "join" | "connected";
+      params: {
+        roomCode: string;
+      };
+    }
+  | {
+      type: "error";
+      message: string;
+    }
+  | {
+      type: "inc_rack" | "dec_rack";
+      params: {
+        i: number;
+      };
+    }
+  | {
+      type: "host_state";
+      params: HostPacket;
+      started?: boolean;
+    }
+  | {
+      type: "ended";
+      params: {
+        success: boolean;
+      };
+    }
+  | {
+      type: "toggle_colour";
+      params: {
+        colour: Colour;
+      };
+    }
+  | {
+      type: "new_display_name";
+      params: {
+        displayName: string;
+      };
+    }
+  | {
+      type: "set_attempt_limit";
+      params: {
+        attemptLimit: number;
+      };
+    }
+  | {
+      type: "new_player" | "update_player" | "make_player_host";
+      params: {
+        player: Player;
+      };
+    }
+  | {
+      type: "player_state";
+      params: PlayerPacket;
+    };
+
 export const GAME = pipe(
   setup({
     types: {} as {
@@ -48,33 +114,11 @@ export const GAME = pipe(
         playerId: string;
         playerDisplayName: string;
         rack: Rack;
-        limit: number;
+        attemptLimit: number;
         colours: Array<Colour>;
         playerList: Array<Player>;
       };
-      events:
-        | {
-            type: "set_code" | "make_host";
-          }
-        | { type: "attempt" | "replace_rack"; params: { rack: Rack } }
-        | { type: "host" | "join"; params: { roomCode: string } }
-        | { type: "error"; message: string }
-        | { type: "inc_rack" | "dec_rack"; params: { i: number } }
-        | { type: "connected"; params: { roomCode: string } }
-        | { type: "host_state"; params: HostPacket; started?: boolean }
-        | { type: "host_disconnected" }
-        | { type: "new_game" }
-        | { type: "ended"; params: { success: boolean } }
-        | { type: "toggle_colour"; params: { colour: Colour } }
-        | { type: "new_display_name"; params: { displayName: string } }
-        | {
-            type: "new_player" | "update_player" | "make_player_host";
-            params: { player: Player };
-          }
-        | {
-            type: "player_state";
-            params: PlayerPacket;
-          };
+      events: MachineEvents;
     },
     guards: {
       isCorrect: (
@@ -113,7 +157,14 @@ export const GAME = pipe(
             (arr) => (Tuple.isTupleOf(arr, 4) ? arr : rack)
           ) satisfies Rack,
       }),
-      sendHostState: (_, params: HostPacket) => sendHostState(params),
+      sendHostState: ({ context }) =>
+        sendHostState({
+          rack: context.rack,
+          attempts: context.attempts,
+          colours: context.colours,
+          playerList: context.playerList,
+          attemptLimit: context.attemptLimit,
+        }),
       sendPlayerState: (_, params: PlayerPacket) => sendPlayerState(params),
       sendSetCode: () => sendSetCode(),
       sendEnded: (_, { success }: { success: boolean }) => sendEnded(success),
@@ -166,7 +217,7 @@ export const GAME = pipe(
       room: Option.none(),
       playerId: "",
       rack: defaultRack,
-      limit: 10,
+      attemptLimit: 10,
       colours: [...ColourSchema.literals],
       playerDisplayName: "",
       playerList: [],
@@ -277,6 +328,7 @@ export const GAME = pipe(
                   actions: assign({
                     rack: ({ event }) => event.params.rack,
                     attempts: ({ event }) => event.params.attempts,
+                    attemptLimit: ({ event }) => event.params.attemptLimit,
                   }),
                   guard: ({ event }) => !!event.started,
                   target: "active",
@@ -356,6 +408,7 @@ export const GAME = pipe(
                 actions: assign({
                   rack: ({ event }) => event.params.rack,
                   attempts: ({ event }) => event.params.attempts,
+                  attemptLimit: ({ event }) => event.params.attemptLimit,
                 }),
               },
               ended: [
@@ -419,15 +472,7 @@ export const GAME = pipe(
                   event.params.player,
                 ],
               }),
-              {
-                type: "sendHostState",
-                params: ({ context }) => ({
-                  rack: context.rack,
-                  attempts: context.attempts,
-                  colours: context.colours,
-                  playerList: context.playerList,
-                }),
-              },
+              "sendHostState",
             ],
           },
           update_player: {
@@ -440,15 +485,7 @@ export const GAME = pipe(
                     (arr) => [...arr, event.params.player]
                   ),
               }),
-              {
-                type: "sendHostState",
-                params: ({ context }) => ({
-                  rack: context.rack,
-                  attempts: context.attempts,
-                  colours: context.colours,
-                  playerList: context.playerList,
-                }),
-              },
+              "sendHostState",
             ],
           },
         },
@@ -471,15 +508,7 @@ export const GAME = pipe(
                     rack: ({ event }) => event.params.rack,
                     colours: ({ event }) => event.params.colours,
                   }),
-                  {
-                    type: "sendHostState",
-                    params: ({ context }) => ({
-                      rack: context.rack,
-                      attempts: context.attempts,
-                      colours: context.colours,
-                      playerList: context.playerList,
-                    }),
-                  },
+                  "sendHostState",
                 ],
               },
               attempt: [
@@ -496,7 +525,7 @@ export const GAME = pipe(
                 },
                 {
                   guard: ({ context }) =>
-                    context.attempts.length + 1 >= context.limit,
+                    context.attempts.length + 1 >= context.attemptLimit,
                   target: "ended.failure",
                   actions: [{ type: "sendEnded", params: { success: false } }],
                 },
@@ -506,15 +535,7 @@ export const GAME = pipe(
                       type: "processAttempt",
                       params: ({ event }) => event.params,
                     },
-                    {
-                      type: "sendHostState",
-                      params: ({ context }) => ({
-                        rack: context.rack,
-                        attempts: context.attempts,
-                        colours: context.colours,
-                        playerList: context.playerList,
-                      }),
-                    },
+                    "sendHostState",
                   ],
                 },
               ],
@@ -547,6 +568,14 @@ export const GAME = pipe(
                   assign({
                     rack: ({ event }) => event.params.rack,
                   }),
+                ],
+              },
+              set_attempt_limit: {
+                actions: [
+                  assign({
+                    attemptLimit: ({ event }) => event.params.attemptLimit,
+                  }),
+                  "sendHostState",
                 ],
               },
             },
@@ -630,6 +659,21 @@ export const GAME = pipe(
           type: "new_display_name",
           params: {
             displayName,
+          },
+        });
+      },
+      get attemptLimit() {
+        return _context.attemptLimit;
+      },
+      set attemptLimit(attemptLimit: number) {
+        if (!attemptLimit || attemptLimit < 1) {
+          return;
+        }
+
+        actor.send({
+          type: "set_attempt_limit",
+          params: {
+            attemptLimit,
           },
         });
       },

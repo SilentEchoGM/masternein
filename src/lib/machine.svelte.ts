@@ -1,3 +1,4 @@
+import { createBrowserInspector } from "@statelyai/inspect";
 import { Array, Effect, Option, Tuple, pipe } from "effect";
 import {
   assign,
@@ -24,6 +25,7 @@ import {
   sendHost,
   sendHostState,
   sendJoin,
+  sendMakePlayerHost,
   sendNewGame,
   sendPlayerState,
   sendSetCode,
@@ -165,6 +167,13 @@ export const GAME = pipe(
           playerList: context.playerList,
           attemptLimit: context.attemptLimit,
         }),
+      processHostState: assign((_, params: HostPacket) => ({
+        attempts: params.attempts,
+        colours: params.colours,
+        playerList: params.playerList,
+        attemptLimit: params.attemptLimit,
+        rack: params.rack,
+      })),
       sendPlayerState: (_, params: PlayerPacket) => sendPlayerState(params),
       sendSetCode: () => sendSetCode(),
       sendEnded: (_, { success }: { success: boolean }) => sendEnded(success),
@@ -203,6 +212,25 @@ export const GAME = pipe(
         room: Option.none(),
         code: Option.none(),
       }),
+      makePlayerHost: assign({
+        playerList: ({ context }, { player }: { player: Player }) =>
+          pipe(
+            context.playerList,
+            Array.filter((p) => p.id !== player.id),
+            Array.filter((p) => !p.host),
+            (arr): Player[] => [
+              ...arr,
+              { ...player, host: true },
+              {
+                displayName: context.playerDisplayName,
+                id: context.playerId,
+                host: false,
+              },
+            ]
+          ),
+      }),
+      sendMakePlayerHost: (_, { player }: { player: Player }) =>
+        sendMakePlayerHost(player),
     },
     actors: {
       getPlayerData: fromPromise(() => Effect.runPromise(getPlayerData)),
@@ -273,32 +301,15 @@ export const GAME = pipe(
         on: {
           host: {
             target: "host",
-            actions: [
-              {
-                type: "sendHost",
-                params: ({ event }) => ({ roomCode: event.params.roomCode }),
-              },
-              assign({
-                playerList: ({ context }) => [
-                  {
-                    id: context.playerId,
-                    displayName: context.playerDisplayName,
-                    host: true,
-                  },
-                ],
-              }),
-            ],
+            actions: assign({
+              room: ({ event }) => Option.some(event.params.roomCode),
+            }),
           },
           join: {
             target: "player",
-            actions: {
-              type: "sendJoin",
-              params: ({ event, context }) => ({
-                roomCode: event.params.roomCode,
-                id: context.playerId,
-                displayName: context.playerDisplayName,
-              }),
-            },
+            actions: assign({
+              room: ({ event }) => Option.some(event.params.roomCode),
+            }),
           },
         },
       },
@@ -309,9 +320,49 @@ export const GAME = pipe(
             target: "menu",
             actions: "reset",
           },
+          host_state: {
+            actions: {
+              type: "processHostState",
+              params: ({ event }) => event.params,
+            },
+          },
+          make_host: {
+            target: "#(machine).host",
+            actions: [
+              assign({
+                playerList: ({ context }) => [
+                  {
+                    id: context.playerId,
+                    displayName: context.playerDisplayName,
+                    host: true,
+                  },
+                  ...pipe(
+                    context.playerList,
+                    Array.filter((p) => p.id !== context.playerId),
+                    Array.map((p) => ({ ...p, host: false }))
+                  ),
+                ],
+              }),
+              () => console.log("make host"),
+            ],
+          },
         },
         states: {
           connecting: {
+            entry: {
+              type: "sendJoin",
+              params: ({ context }) => {
+                if (Option.isNone(context.room)) {
+                  throw new Error("room is not set");
+                }
+
+                return {
+                  roomCode: context.room.value,
+                  id: context.playerId,
+                  displayName: context.playerDisplayName,
+                };
+              },
+            },
             on: {
               connected: {
                 target: "waiting",
@@ -325,20 +376,12 @@ export const GAME = pipe(
             on: {
               host_state: [
                 {
-                  actions: assign({
-                    rack: ({ event }) => event.params.rack,
-                    attempts: ({ event }) => event.params.attempts,
-                    attemptLimit: ({ event }) => event.params.attemptLimit,
-                  }),
+                  actions: {
+                    type: "processHostState",
+                    params: ({ event }) => event.params,
+                  },
                   guard: ({ event }) => !!event.started,
                   target: "active",
-                },
-                {
-                  actions: assign({
-                    rack: ({ event }) => event.params.rack,
-                    attempts: ({ event }) => event.params.attempts,
-                  }),
-                  target: "inactive",
                 },
               ],
             },
@@ -404,13 +447,6 @@ export const GAME = pipe(
                   },
                 ],
               },
-              host_state: {
-                actions: assign({
-                  rack: ({ event }) => event.params.rack,
-                  attempts: ({ event }) => event.params.attempts,
-                  attemptLimit: ({ event }) => event.params.attemptLimit,
-                }),
-              },
               ended: [
                 {
                   target: "ended.success",
@@ -433,25 +469,6 @@ export const GAME = pipe(
               new_game: {
                 target: "inactive",
                 actions: "reset",
-              },
-              make_host: {
-                target: "..host",
-                actions: [
-                  assign({
-                    playerList: ({ context }) => [
-                      {
-                        id: context.playerId,
-                        displayName: context.playerDisplayName,
-                        host: true,
-                      },
-                      ...pipe(
-                        context.playerList,
-                        Array.filter((p) => p.id !== context.playerId),
-                        Array.map((p) => ({ ...p, host: false }))
-                      ),
-                    ],
-                  }),
-                ],
               },
             },
             states: {
@@ -491,6 +508,26 @@ export const GAME = pipe(
         },
         states: {
           connecting: {
+            entry: [
+              {
+                type: "sendHost",
+                params: ({ context }) => {
+                  if (Option.isNone(context.room)) {
+                    throw new Error("room is not set");
+                  }
+                  return { roomCode: context.room.value };
+                },
+              },
+              assign({
+                playerList: ({ context }) => [
+                  {
+                    id: context.playerId,
+                    displayName: context.playerDisplayName,
+                    host: true,
+                  },
+                ],
+              }),
+            ],
             on: {
               connected: {
                 target: "active",
@@ -578,6 +615,19 @@ export const GAME = pipe(
                   "sendHostState",
                 ],
               },
+              make_player_host: {
+                target: "#(machine).player",
+                actions: [
+                  {
+                    type: "makePlayerHost",
+                    params: ({ event }) => event.params,
+                  },
+                  {
+                    type: "sendMakePlayerHost",
+                    params: ({ event }) => ({ player: event.params.player }),
+                  },
+                ],
+              },
             },
           },
           ended: {
@@ -588,25 +638,17 @@ export const GAME = pipe(
                 actions: ["reset", "sendNewGame"],
               },
               make_player_host: {
-                target: "..player",
+                target: "#(machine).player",
                 actions: [
-                  assign({
-                    playerList: ({ event, context }) =>
-                      pipe(
-                        context.playerList,
-                        Array.filter((p) => p.id !== event.params.player.id),
-                        Array.filter((p) => !p.host),
-                        (arr): Player[] => [
-                          ...arr,
-                          { ...event.params.player, host: true },
-                          {
-                            displayName: context.playerDisplayName,
-                            id: context.playerId,
-                            host: false,
-                          },
-                        ]
-                      ),
-                  }),
+                  {
+                    type: "makePlayerHost",
+                    params: ({ event }) => event.params,
+                  },
+                  {
+                    type: "sendMakePlayerHost",
+                    params: ({ event }) => ({ player: event.params.player }),
+                  },
+                  "reset",
                 ],
               },
             },
@@ -620,7 +662,9 @@ export const GAME = pipe(
     },
   }),
   (logic) => {
-    const actor = createActor(logic);
+    const actor = createActor(logic, {
+      inspect: createBrowserInspector().inspect,
+    });
     actor.start();
 
     let _snapshot = $state(actor.getSnapshot());

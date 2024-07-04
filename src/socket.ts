@@ -208,7 +208,10 @@ io.on("connection", (socket) => {
     const newHostSocket = getPlayerSocket(socket.data.roomCode, player.id);
 
     if (Option.isSome(newHostSocket)) {
-      console.log(`📋 make player host ${socket.data.playerId}`, player);
+      console.log(
+        `📋 ${socket.data.playerId} made player ${newHostSocket.value.data.playerId} host`,
+        player
+      );
       newHostSocket.value.data.host = true;
       newHostSocket.value.emit("make-host");
     }

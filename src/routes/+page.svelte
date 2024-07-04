@@ -3,6 +3,7 @@
   import { GAME } from "$lib/machine.svelte";
   import RackUi from "$lib/RackUi.svelte";
   import { Array, Option, pipe } from "effect";
+  import { snapshot } from "effect/Metric";
 
   let input = $state("");
 
@@ -14,6 +15,15 @@
       Option.isSome
     )
   );
+
+  $effect(() => {
+    console.log(
+      "state",
+      typeof GAME.snapshot.value === "object"
+        ? { ...GAME.snapshot.value }
+        : GAME.snapshot.value
+    );
+  });
 </script>
 
 <h1 class="text-3xl font-bold">MasterNein</h1>
@@ -247,35 +257,44 @@
   {/each}
 {/if}
 
-{#if GAME.snapshot.matches("host")}
-  <div class="flex flex-col">
-    <h3 class="text-xl font-bold text-center">Players</h3>
-    <div class="flex flex-col gap-2 bg-gray-300 p-3 rounded-lg">
-      {#each GAME.context.playerList.filter((p) => !p.host) as player}
-        <div
-          class="flex place-content-center gap-2 bg-gray-300 rounded-lg place-items-baseline">
-          <div class="font-bold">{player.displayName}</div>
-          <button
-            class="bg-green-600 hover:bg-green-800 disabled:bg-gray-400 font-bold text-white py-1 px-2 rounded"
-            onclick="{() => {
-              GAME.send({
-                type: 'make_player_host',
-                params: {
-                  player,
-                },
-              });
-            }}">
-            Make Host
-          </button>
-        </div>
-      {/each}
-    </div>
+<div class="flex flex-col bg-gray-300 p-2 px-4 rounded-lg">
+  <div
+    class="grid grid-cols-2 gap-2 place-content-center place-items-center mt-auto mb-2 bg-gray-300 py-3 px-2 rounded-lg">
+    <div class="font-bold">Display Name</div>
+
+    <input class="w-full rounded text-center" bind:value="{GAME.displayName}" />
   </div>
-{/if}
 
-<div
-  class="grid grid-cols-2 gap-2 place-content-center place-items-center mt-auto mb-2 bg-gray-300 py-3 px-2 rounded-lg">
-  <div class="font-bold">Display Name</div>
-
-  <input class="w-full rounded text-center" bind:value="{GAME.displayName}" />
+  {#if Option.isSome(GAME.context.room)}
+    <div class="flex flex-col gap-2">
+      <h3 class="text-xl font-bold text-center">Players</h3>
+      <div class="flex flex-col gap-3">
+        {#each GAME.context.playerList.filter((p) => p.id !== GAME.context.playerId) as player}
+          <div
+            class="flex place-content-center gap-3 bg-gray-300 rounded-lg place-items-baseline">
+            <div class="font-bold">
+              {player.displayName}
+              {#if GAME.snapshot.matches("player") && player.host}
+                <span class="font-normal">(Host)</span>
+              {/if}
+            </div>
+            {#if GAME.snapshot.matches("host")}
+              <button
+                class="bg-green-600 hover:bg-green-800 disabled:bg-gray-400 font-bold text-white py-1 px-2 rounded text-xs"
+                onclick="{() => {
+                  GAME.send({
+                    type: 'make_player_host',
+                    params: {
+                      player,
+                    },
+                  });
+                }}">
+                Make Host
+              </button>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    </div>
+  {/if}
 </div>

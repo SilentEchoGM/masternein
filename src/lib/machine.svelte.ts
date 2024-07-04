@@ -1,6 +1,14 @@
 import { Array, Effect, Option, Tuple, pipe } from "effect";
-import { assign, createActor, fromPromise, log, raise, setup } from "xstate";
-import { getPlayerId } from "./db";
+import {
+  assign,
+  createActor,
+  enqueueActions,
+  fromPromise,
+  log,
+  raise,
+  setup,
+} from "xstate";
+import { getPlayerData, setPlayerDisplayName } from "./db";
 import {
   ColourSchema,
   compareRack,
@@ -8,6 +16,7 @@ import {
   getPreviousColour,
   isWinningRack,
   type Colour,
+  type Player,
 } from "./game";
 import {
   sendAttempt,
@@ -18,8 +27,9 @@ import {
   sendNewGame,
   sendPlayerState,
   sendSetCode,
+  sendUpdatePlayer,
 } from "./socket";
-import type { Attempt, GamePacket, Rack } from "./types";
+import type { Attempt, HostPacket, PlayerPacket, Rack } from "./types";
 
 const defaultRack: Rack = [
   ColourSchema.literals[0],
@@ -35,29 +45,35 @@ export const GAME = pipe(
         code: Option.Option<Rack>;
         attempts: Array<Attempt>;
         room: Option.Option<string>;
-        playerId: Option.Option<string>;
+        playerId: string;
+        playerDisplayName: string;
         rack: Rack;
         limit: number;
         colours: Array<Colour>;
+        playerList: Array<Player>;
       };
       events:
         | {
-            type: "set_code";
+            type: "set_code" | "make_host";
           }
-        | { type: "attempt"; params: { rack: Rack } }
+        | { type: "attempt" | "replace_rack"; params: { rack: Rack } }
         | { type: "host" | "join"; params: { roomCode: string } }
         | { type: "error"; message: string }
         | { type: "inc_rack" | "dec_rack"; params: { i: number } }
         | { type: "connected"; params: { roomCode: string } }
-        | { type: "host_state"; params: GamePacket; started?: boolean }
+        | { type: "host_state"; params: HostPacket; started?: boolean }
         | { type: "host_disconnected" }
-        | { type: "replace_rack"; params: { rack: Rack } }
         | { type: "new_game" }
         | { type: "ended"; params: { success: boolean } }
         | { type: "toggle_colour"; params: { colour: Colour } }
+        | { type: "new_display_name"; params: { displayName: string } }
+        | {
+            type: "new_player" | "update_player" | "make_player_host";
+            params: { player: Player };
+          }
         | {
             type: "player_state";
-            params: GamePacket;
+            params: PlayerPacket;
           };
     },
     guards: {
@@ -67,7 +83,19 @@ export const GAME = pipe(
       ) => Option.isSome(correct) && isWinningRack(correct.value)(rack),
     },
     actions: {
-      sendJoin: (_, { roomCode }: { roomCode: string }) => sendJoin(roomCode),
+      sendJoin: (
+        _,
+        {
+          roomCode,
+          id,
+          displayName,
+        }: { roomCode: string; id: string; displayName: string }
+      ) =>
+        sendJoin(roomCode, {
+          id,
+          displayName,
+          host: false,
+        }),
       sendHost: (_, { roomCode }: { roomCode: string }) => sendHost(roomCode),
       sendAttempt: (_, { rack }: { rack: Rack }) => sendAttempt(rack),
       sendNewGame: () => sendNewGame(),
@@ -85,10 +113,12 @@ export const GAME = pipe(
             (arr) => (Tuple.isTupleOf(arr, 4) ? arr : rack)
           ) satisfies Rack,
       }),
-      sendHostState: (_, params: GamePacket) => sendHostState(params),
-      sendPlayerState: (_, params: GamePacket) => sendPlayerState(params),
+      sendHostState: (_, params: HostPacket) => sendHostState(params),
+      sendPlayerState: (_, params: PlayerPacket) => sendPlayerState(params),
       sendSetCode: () => sendSetCode(),
       sendEnded: (_, { success }: { success: boolean }) => sendEnded(success),
+      sendUpdatePlayer: (_, { player }: { player: Player }) =>
+        sendUpdatePlayer(player),
       processAttempt: assign({
         attempts: (
           { context: { code, attempts } },
@@ -124,25 +154,31 @@ export const GAME = pipe(
       }),
     },
     actors: {
-      getPlayerId: fromPromise(() => Effect.runPromise(getPlayerId)),
+      getPlayerData: fromPromise(() => Effect.runPromise(getPlayerData)),
+      setPlayerDisplayName: fromPromise(({ input }: { input: string }) =>
+        Effect.runPromise(setPlayerDisplayName(input))
+      ),
     },
   }).createMachine({
     context: {
       code: Option.none(),
       attempts: [],
       room: Option.none(),
-      playerId: Option.none(),
+      playerId: "",
       rack: defaultRack,
       limit: 10,
       colours: [...ColourSchema.literals],
+      playerDisplayName: "",
+      playerList: [],
     },
     invoke: {
-      src: "getPlayerId",
-      id: "getPlayerId",
+      src: "getPlayerData",
+      id: "getPlayerData",
       onDone: {
-        actions: assign({
-          playerId: ({ event }) => Option.some(event.output),
-        }),
+        actions: assign(({ event }) => ({
+          playerId: event.output.playerId,
+          playerDisplayName: event.output.playerDisplayName,
+        })),
       },
       onError: {
         actions: [
@@ -155,21 +191,62 @@ export const GAME = pipe(
       },
     },
     initial: "menu",
+    on: {
+      new_display_name: {
+        actions: [
+          enqueueActions(({ enqueue, context, event, self }) => {
+            const isHost = self.getSnapshot().matches("host");
+            const isPlayer = self.getSnapshot().matches("player");
+
+            enqueue.assign({
+              playerDisplayName: ({ event }) => event.params.displayName,
+            });
+
+            enqueue.spawnChild("setPlayerDisplayName", {
+              input: event.params.displayName,
+            });
+
+            if (isHost || isPlayer) {
+              sendUpdatePlayer({
+                id: context.playerId,
+                displayName: event.params.displayName,
+                host: isHost,
+              });
+            }
+          }),
+        ],
+      },
+    },
     states: {
       menu: {
         on: {
           host: {
             target: "host",
-            actions: {
-              type: "sendHost",
-              params: ({ event }) => ({ roomCode: event.params.roomCode }),
-            },
+            actions: [
+              {
+                type: "sendHost",
+                params: ({ event }) => ({ roomCode: event.params.roomCode }),
+              },
+              assign({
+                playerList: ({ context }) => [
+                  {
+                    id: context.playerId,
+                    displayName: context.playerDisplayName,
+                    host: true,
+                  },
+                ],
+              }),
+            ],
           },
           join: {
             target: "player",
             actions: {
               type: "sendJoin",
-              params: ({ event }) => ({ roomCode: event.params.roomCode }),
+              params: ({ event, context }) => ({
+                roomCode: event.params.roomCode,
+                id: context.playerId,
+                displayName: context.playerDisplayName,
+              }),
             },
           },
         },
@@ -304,6 +381,25 @@ export const GAME = pipe(
                 target: "inactive",
                 actions: "reset",
               },
+              make_host: {
+                target: "..host",
+                actions: [
+                  assign({
+                    playerList: ({ context }) => [
+                      {
+                        id: context.playerId,
+                        displayName: context.playerDisplayName,
+                        host: true,
+                      },
+                      ...pipe(
+                        context.playerList,
+                        Array.filter((p) => p.id !== context.playerId),
+                        Array.map((p) => ({ ...p, host: false }))
+                      ),
+                    ],
+                  }),
+                ],
+              },
             },
             states: {
               success: {},
@@ -314,6 +410,48 @@ export const GAME = pipe(
       },
       host: {
         initial: "connecting",
+        on: {
+          new_player: {
+            actions: [
+              assign({
+                playerList: ({ event, context }) => [
+                  ...context.playerList,
+                  event.params.player,
+                ],
+              }),
+              {
+                type: "sendHostState",
+                params: ({ context }) => ({
+                  rack: context.rack,
+                  attempts: context.attempts,
+                  colours: context.colours,
+                  playerList: context.playerList,
+                }),
+              },
+            ],
+          },
+          update_player: {
+            actions: [
+              assign({
+                playerList: ({ event, context }) =>
+                  pipe(
+                    context.playerList,
+                    Array.filter((p) => p.id !== event.params.player.id),
+                    (arr) => [...arr, event.params.player]
+                  ),
+              }),
+              {
+                type: "sendHostState",
+                params: ({ context }) => ({
+                  rack: context.rack,
+                  attempts: context.attempts,
+                  colours: context.colours,
+                  playerList: context.playerList,
+                }),
+              },
+            ],
+          },
+        },
         states: {
           connecting: {
             on: {
@@ -339,6 +477,7 @@ export const GAME = pipe(
                       rack: context.rack,
                       attempts: context.attempts,
                       colours: context.colours,
+                      playerList: context.playerList,
                     }),
                   },
                 ],
@@ -373,6 +512,7 @@ export const GAME = pipe(
                         rack: context.rack,
                         attempts: context.attempts,
                         colours: context.colours,
+                        playerList: context.playerList,
                       }),
                     },
                   ],
@@ -418,6 +558,28 @@ export const GAME = pipe(
                 target: "active",
                 actions: ["reset", "sendNewGame"],
               },
+              make_player_host: {
+                target: "..player",
+                actions: [
+                  assign({
+                    playerList: ({ event, context }) =>
+                      pipe(
+                        context.playerList,
+                        Array.filter((p) => p.id !== event.params.player.id),
+                        Array.filter((p) => !p.host),
+                        (arr): Player[] => [
+                          ...arr,
+                          { ...event.params.player, host: true },
+                          {
+                            displayName: context.playerDisplayName,
+                            id: context.playerId,
+                            host: false,
+                          },
+                        ]
+                      ),
+                  }),
+                ],
+              },
             },
             states: {
               success: {},
@@ -452,6 +614,24 @@ export const GAME = pipe(
       },
       get value() {
         return _value;
+      },
+      get displayName() {
+        if (_context.playerDisplayName.length === 0) {
+          return "Player";
+        }
+        return _context.playerDisplayName;
+      },
+      set displayName(displayName: string) {
+        if (!displayName || displayName.length === 0) {
+          return;
+        }
+
+        actor.send({
+          type: "new_display_name",
+          params: {
+            displayName,
+          },
+        });
       },
     };
   }

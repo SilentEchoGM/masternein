@@ -69,6 +69,17 @@ const getHostSocket = (roomCode: string) =>
     )
   );
 
+const getPlayerSocket = (roomCode: string, playerId: string) =>
+  pipe(
+    [...(io.sockets.adapter.rooms.get(roomCode) || [])],
+    Array.findFirst(
+      (socket) => io.sockets.sockets.get(socket)?.data.playerId === playerId
+    ),
+    Option.flatMap((socket) =>
+      Option.fromNullable(io.sockets.sockets.get(socket))
+    )
+  );
+
 io.on("connection", (socket) => {
   const playerId = pipe(
     Schema.decodeUnknown(Schema.String.pipe(Schema.nonEmpty()))(
@@ -109,13 +120,14 @@ io.on("connection", (socket) => {
     connections.delete(playerId);
   });
 
-  socket.on("join", ({ roomCode }) => {
+  socket.on("join", ({ roomCode, player }) => {
     const hostSocket = getHostSocket(roomCode);
 
     if (Option.isSome(hostSocket)) {
       socket.join(roomCode);
       socket.emit("in-room", { roomCode });
       hostSocket.value.emit("request-state");
+      hostSocket.value.emit("new-player", { player });
       socket.data.roomCode = roomCode;
     } else {
       socket.emit("error", { message: "room does not exist" });
@@ -135,19 +147,22 @@ io.on("connection", (socket) => {
     console.log("🕹️✔️", `${socket.data.playerId} is hosting ${roomCode}`);
   });
 
-  socket.on("player-state", ({ rack, attempts, colours }) => {
+  socket.on("player-state", ({ rack, colours }) => {
     const hostSocket = getHostSocket(socket.data.roomCode);
 
     if (Option.isSome(hostSocket)) {
-      hostSocket.value.emit("player-state", { rack, attempts, colours });
+      hostSocket.value.emit("player-state", { rack, colours });
     }
   });
 
-  socket.on("host-state", ({ rack, attempts, colours }, started = false) => {
-    socket.broadcast
-      .to(socket.data.roomCode)
-      .emit("host-state", { rack, attempts, colours }, started);
-  });
+  socket.on(
+    "host-state",
+    ({ rack, attempts, playerList, colours }, started = false) => {
+      socket.broadcast
+        .to(socket.data.roomCode)
+        .emit("host-state", { rack, attempts, playerList, colours }, started);
+    }
+  );
 
   socket.on("set-code", () => {
     console.log("🔄", `${socket.data.playerId} has set the code`);
@@ -167,7 +182,28 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("new_game", () => {
-    socket.broadcast.to(socket.data.roomCode).emit("new_game");
+  socket.on("new-game", () => {
+    socket.broadcast.to(socket.data.roomCode).emit("new-game");
+  });
+
+  socket.on("update-player", ({ player }) => {
+    const hostSocket = getHostSocket(socket.data.roomCode);
+
+    if (Option.isSome(hostSocket)) {
+      console.log(`📋 update player ${socket.data.playerId}`, player);
+      hostSocket.value.emit("update-player", { player });
+    }
+  });
+
+  socket.on("make-player-host", ({ player }) => {
+    socket.data.host = false;
+
+    const newHostSocket = getPlayerSocket(socket.data.roomCode, player.id);
+
+    if (Option.isSome(newHostSocket)) {
+      console.log(`📋 make player host ${socket.data.playerId}`, player);
+      newHostSocket.value.data.host = true;
+      newHostSocket.value.emit("make-host");
+    }
   });
 });

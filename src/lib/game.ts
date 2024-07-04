@@ -14,6 +14,14 @@ export const ColourSchema = Schema.Literal(
   "purple"
 );
 
+export const PlayerSchema = Schema.Struct({
+  id: Schema.String,
+  displayName: Schema.String,
+  host: Schema.Boolean,
+});
+
+export type Player = typeof PlayerSchema.Type;
+
 export type Colour = typeof ColourSchema.Type;
 
 export const colours: Record<Colour, string> = {

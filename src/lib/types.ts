@@ -1,5 +1,5 @@
 import type { TupleOf } from "effect/Types";
-import type { Colour } from "./game";
+import type { Colour, Player } from "./game";
 
 export type Rack = TupleOf<4, Colour>;
 
@@ -10,9 +10,15 @@ export type Attempt = {
   i: number;
 };
 
-export type GamePacket = {
+export type HostPacket = {
   rack: TupleOf<4, Colour>;
   attempts: Array<Attempt>;
+  colours: Array<Colour>;
+  playerList: Array<Player>;
+};
+
+export type PlayerPacket = {
+  rack: TupleOf<4, Colour>;
   colours: Array<Colour>;
 };
 
@@ -21,23 +27,28 @@ export type ServerToClientEvents = {
   error: (params: { message: string }) => void;
   "in-room": (params: { roomCode: string }) => void;
   "request-state": () => void;
-  "host-state": (params: GamePacket, started?: boolean) => void;
-  "player-state": (params: GamePacket) => void;
+  "host-state": (params: HostPacket, started?: boolean) => void;
+  "player-state": (params: PlayerPacket) => void;
   "set-code": () => void;
   attempt: (params: { rack: Rack }) => void;
   "host-disconnected": () => void;
-  new_game: () => void;
+  "new-game": () => void;
+  "new-player": (params: { player: Player }) => void;
+  "update-player": (params: { player: Player }) => void;
+  "make-host": () => void;
 };
 
 export type ClientToServerEvents = {
   host: (params: { roomCode: string }) => void;
-  join: (params: { roomCode: string }) => void;
+  join: (params: { roomCode: string; player: Player }) => void;
   ended: (params: { success: boolean }) => void;
-  "host-state": (params: GamePacket, started?: boolean) => void;
-  "player-state": (params: GamePacket) => void;
+  "host-state": (params: HostPacket, started?: boolean) => void;
+  "player-state": (params: PlayerPacket) => void;
   "set-code": () => void;
   attempt: (params: { rack: Rack }) => void;
-  new_game: () => void;
+  "new-game": () => void;
+  "update-player": (params: { player: Player }) => void;
+  "make-player-host": (params: { player: Player }) => void;
 };
 
 export type InterServerEvents = {};

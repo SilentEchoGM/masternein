@@ -2,10 +2,12 @@ import { browser, dev } from "$app/environment";
 import { Effect, Option } from "effect";
 import { Socket, io } from "socket.io-client";
 import { getPlayerId } from "./db";
+import type { Player } from "./game";
 import { GAME } from "./machine.svelte";
 import type {
   ClientToServerEvents,
-  GamePacket,
+  HostPacket,
+  PlayerPacket,
   Rack,
   ServerToClientEvents,
 } from "./types";
@@ -46,32 +48,36 @@ const connectSocket = async () => {
     });
   });
 
-  _socket.on("player-state", ({ rack, attempts, colours }) => {
+  _socket.on("player-state", ({ rack, colours }) => {
     console.log("📋 player-state", rack);
 
     GAME.send({
       type: "player_state",
       params: {
         rack,
-        attempts,
+
         colours,
       },
     });
   });
 
-  _socket.on("host-state", ({ rack, attempts, colours }, started = false) => {
-    console.log("📋host-state", rack);
+  _socket.on(
+    "host-state",
+    ({ rack, attempts, colours, playerList }, started = false) => {
+      console.log("📋host-state", rack);
 
-    GAME.send({
-      type: "host_state",
-      params: {
-        rack,
-        attempts,
-        colours,
-      },
-      started,
-    });
-  });
+      GAME.send({
+        type: "host_state",
+        params: {
+          rack,
+          attempts,
+          colours,
+          playerList,
+        },
+        started,
+      });
+    }
+  );
 
   _socket.on("request-state", () => {
     console.log("❔");
@@ -81,6 +87,7 @@ const connectSocket = async () => {
         rack: GAME.context.rack,
         attempts: GAME.context.attempts,
         colours: GAME.context.colours,
+        playerList: GAME.context.playerList,
       },
       Option.isSome(GAME.context.code)
     );
@@ -104,7 +111,7 @@ const connectSocket = async () => {
   });
 
   _socket.on("ended", ({ success }) => {
-    console.log("📋", success);
+    console.log("📋 success?", success);
 
     GAME.send({
       type: "ended",
@@ -129,17 +136,33 @@ const connectSocket = async () => {
     console.error("❗📡❌ error", message);
   });
 
-  _socket.on("new_game", () => {
+  _socket.on("new-game", () => {
     console.log("📡✔️");
     GAME.send({
       type: "new_game",
+    });
+  });
+
+  _socket.on("make-host", () => {
+    console.log("📡✔️");
+    GAME.send({
+      type: "make_host",
+    });
+  });
+
+  _socket.on("new-player", ({ player }) => {
+    GAME.send({
+      type: "new_player",
+      params: {
+        player,
+      },
     });
   });
 };
 
 connectSocket();
 
-export const sendJoin = (roomCode: string) => {
+export const sendJoin = (roomCode: string, player: Player) => {
   if (Option.isNone(socket.conn)) {
     console.error("socket is not connected");
     return;
@@ -147,6 +170,7 @@ export const sendJoin = (roomCode: string) => {
 
   socket.conn.value.emit("join", {
     roomCode,
+    player,
   });
 };
 
@@ -161,7 +185,7 @@ export const sendHost = (roomCode: string) => {
   });
 };
 
-export const sendPlayerState = (packet: GamePacket) => {
+export const sendPlayerState = (packet: PlayerPacket) => {
   if (Option.isNone(socket.conn)) {
     console.error("socket is not connected");
     return;
@@ -170,7 +194,7 @@ export const sendPlayerState = (packet: GamePacket) => {
   socket.conn.value.emit("player-state", packet);
 };
 
-export const sendHostState = (packet: GamePacket) => {
+export const sendHostState = (packet: HostPacket) => {
   console.log("📋sendHostState", packet);
   if (Option.isNone(socket.conn)) {
     console.error("socket is not connected");
@@ -217,5 +241,23 @@ export const sendNewGame = () => {
     return;
   }
 
-  socket.conn.value.emit("new_game");
+  socket.conn.value.emit("new-game");
+};
+
+export const sendUpdatePlayer = (player: Player) => {
+  if (Option.isNone(socket.conn)) {
+    console.error("socket is not connected");
+    return;
+  }
+
+  socket.conn.value.emit("update-player", { player });
+};
+
+export const sendMakePlayerHost = (player: Player) => {
+  if (Option.isNone(socket.conn)) {
+    console.error("socket is not connected");
+    return;
+  }
+
+  socket.conn.value.emit("make-player-host", { player });
 };

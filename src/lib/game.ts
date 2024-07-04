@@ -108,3 +108,11 @@ export const isEqualRack = (correct: Rack) => (attempt: Rack) =>
     Array.length,
     (len) => len === correct.length
   );
+
+export const randomRack = (): Rack =>
+  pipe(
+    () => Math.floor(Math.random() * ColourSchema.literals.length),
+    Array.replicate(4),
+    Array.map((fn) => fn()),
+    Array.map((i) => ColourSchema.literals[i])
+  ) as Rack;

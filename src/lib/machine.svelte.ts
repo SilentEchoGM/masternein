@@ -119,6 +119,8 @@ export const GAME = pipe(
         attempts: [],
         colours: [...ColourSchema.literals],
         rack: defaultRack,
+        room: Option.none(),
+        code: Option.none(),
       }),
     },
     actors: {
@@ -398,6 +400,13 @@ export const GAME = pipe(
               dec_rack: {
                 actions: [
                   { type: "decRack", params: ({ event }) => event.params },
+                ],
+              },
+              replace_rack: {
+                actions: [
+                  assign({
+                    rack: ({ event }) => event.params.rack,
+                  }),
                 ],
               },
             },

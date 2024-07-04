@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { colours, ColourSchema, isEqualRack } from "$lib/game";
+  import { colours, ColourSchema, isEqualRack, randomRack } from "$lib/game";
   import { GAME } from "$lib/machine.svelte";
   import RackUi from "$lib/RackUi.svelte";
   import { Array, Option, pipe } from "effect";
@@ -78,7 +78,7 @@
 
     {#if Option.isSome(GAME.context.code)}
       <div class="bg-gray-300 p-3 rounded-lg">
-        <h3 class="text-xl font-bold">Code</h3>
+        <h3 class="text-xl font-bold text-center pb-2">Target Code</h3>
         <RackUi rack="{GAME.context.code.value}" />
       </div>
     {/if}
@@ -136,15 +136,27 @@
       GAME.snapshot.matches({ host: 'active' })}" />
 
   {#if GAME.snapshot.matches("host") && Option.isNone(GAME.context.code)}
-    <button
-      class="bg-green-600 hover:bg-green-800 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded"
-      onclick="{() => {
-        GAME.send({
-          type: 'set_code',
-        });
-      }}">
-      Set Code
-    </button>
+    <div class="flex gap-2">
+      <button
+        class="bg-orange-400 hover:bg-orange-600 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded"
+        onclick="{() => {
+          GAME.send({
+            type: 'replace_rack',
+            params: {
+              rack: randomRack(),
+            },
+          });
+        }}">Random</button>
+      <button
+        class="bg-green-600 hover:bg-green-800 disabled:bg-gray-400 text-white font-bold py-2 px-4 rounded"
+        onclick="{() => {
+          GAME.send({
+            type: 'set_code',
+          });
+        }}">
+        Set Code
+      </button>
+    </div>
   {/if}
 
   {#if GAME.snapshot.matches({ player: "active" })}
